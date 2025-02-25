@@ -1,0 +1,44 @@
+name: Sync with GitLab
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout self
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WF_TOKEN }}
+
+      - name: Backup workflow
+        run: cp .github/workflows/sync.yml /tmp/sync.yml.bak
+
+        
+      - name: Force mirror update
+        run: |
+          git remote add upstream https://gitlab.com/Binaryify/neteasecloudmusicapi.git
+          git fetch upstream
+          git reset --hard upstream/main
+          git clean -fd -x
+
+      - name: Restore workflow
+        run: |
+          mkdir -p .github/workflows
+          cp /tmp/sync.yml.bak .github/workflows/sync.yml
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "ILoveScratch Syncer: Sync and add workflow"
+          git config --global user.email "sync@ilovescratch.com"
+          git add .github/workflows
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit"
+          else
+            git commit -m "ADD SYNC: Restore workflow $(date +'%Y-%m-%d')"
+            git push --force origin main
+          fi
